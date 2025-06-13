@@ -5,7 +5,7 @@ import json
 import time
 import os
 from typing import Dict, List, Any, Optional
-from openai import OpenAI
+import openai
 
 from .utils.logger import setup_logger
 from .config import OPENAI_API_KEY
@@ -24,28 +24,16 @@ class GPTAnalyzer:
         """
         self.api_key = api_key or OPENAI_API_KEY
         
-        # OpenAI v1.5.0以降では、環境変数を使用してプロキシを設定する
-        logger.info("Initializing OpenAI client with API key only")
+        # OpenAI APIキーを設定
+        openai.api_key = self.api_key
         
-        # 環境変数が設定されているか確認
+        # プロキシ設定（必要な場合）
         proxy = os.environ.get('OPENAI_PROXY')
         if proxy:
-            logger.info(f"Using proxy from OPENAI_PROXY environment variable: {proxy}")
-            # 環境変数からプロキシを設定
-            os.environ['HTTP_PROXY'] = proxy
-            os.environ['HTTPS_PROXY'] = proxy
+            logger.info(f"Using proxy: {proxy}")
+            openai.proxy = proxy
         else:
             logger.info("No proxy configuration found. Set OPENAI_PROXY environment variable if needed.")
-        
-        # 環境変数を使用してOpenAIクライアントを初期化
-        try:
-            self.client = OpenAI(api_key=self.api_key)
-            # 接続テスト
-            self.client.models.list()  # 接続テスト
-            logger.info("Successfully initialized OpenAI client")
-        except Exception as e:
-            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
-            raise
         
     def _create_prompt(self, market_data: Dict[str, Any], timeframe: str) -> str:
         """
@@ -129,7 +117,7 @@ class GPTAnalyzer:
                 try:
                     logger.info(f"Sending request to OpenAI API for {timeframe} analysis")
                     
-                    response = self.client.chat.completions.create(
+                    response = openai.ChatCompletion.create(
                         model="gpt-3.5-turbo",
                         messages=[
                             {"role": "system", "content": "あなたはプロのトレーダーで、暗号資産市場の分析を行います。"},
@@ -140,7 +128,7 @@ class GPTAnalyzer:
                     )
                     
                     # レスポンスからテキスト部分を抽出
-                    analysis_text = response.choices[0].message.content.strip()
+                    analysis_text = response.choices[0].message['content'].strip()
                     
                     # 分析テキストをパースして構造化
                     result = self._parse_analysis(analysis_text)
