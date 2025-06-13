@@ -3,8 +3,9 @@ GPTを活用したトレード分析モジュール
 """
 import json
 import time
+import os
 from typing import Dict, List, Any, Optional
-import openai
+from openai import OpenAI
 
 from .utils.logger import setup_logger
 from .config import OPENAI_API_KEY
@@ -22,7 +23,7 @@ class GPTAnalyzer:
             api_key: OpenAI API Key (デフォルトはconfig.pyから取得)
         """
         self.api_key = api_key or OPENAI_API_KEY
-        openai.api_key = self.api_key
+        self.client = OpenAI(api_key=self.api_key)
         
     def _create_prompt(self, market_data: Dict[str, Any], timeframe: str) -> str:
         """
@@ -106,7 +107,7 @@ class GPTAnalyzer:
                 try:
                     logger.info(f"Sending request to OpenAI API for {timeframe} analysis")
                     
-                    response = openai.ChatCompletion.create(
+                    response = self.client.chat.completions.create(
                         model="gpt-3.5-turbo",
                         messages=[
                             {"role": "system", "content": "あなたはプロのトレーダーで、暗号資産市場の分析を行います。"},
