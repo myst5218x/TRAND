@@ -17,12 +17,15 @@ logger = setup_logger("data_fetcher")
 class DataFetcher:
     """暗号資産の価格データを取得するクラス"""
     
-    def __init__(self, exchange_id: str = "bybit", symbol: str = DEFAULT_SYMBOL):
+    # フォールバック用の取引所リスト
+    FALLBACK_EXCHANGES = ["kraken", "coinbase", "kucoin", "bybit"]
+    
+    def __init__(self, exchange_id: str = "kraken", symbol: str = DEFAULT_SYMBOL):
         """
         初期化
         
         Args:
-            exchange_id: 取引所ID (デフォルト: "binance")
+            exchange_id: 取引所ID (デフォルト: "kraken")
             symbol: 通貨ペア (デフォルト: DEFAULT_SYMBOL)
         """
         self.exchange_id = exchange_id
@@ -62,9 +65,55 @@ class DataFetcher:
     def fetch_ohlcv(self, timeframe: str = '1d', limit: int = 100) -> pd.DataFrame:
         """
         指定されたタイムフレームのOHLCVデータを取得
+        複数の取引所を試してデータを取得するフォールバックメカニズムを実装
         
         Args:
             timeframe: 時間枠 ('1m', '5m', '15m', '1h', '4h', '1d', '1w', '1M')
+            limit: 取得するデータ点の数
+            
+        Returns:
+            pd.DataFrame: OHLCV データ
+        """
+        # 現在の取引所で試す
+        df = self._try_fetch_from_exchange(self.exchange_id, timeframe, limit)
+        if not df.empty:
+            return df
+            
+        # 現在の取引所が失敗した場合、フォールバック取引所を試す
+        logger.warning(f"{self.exchange_id} failed. Trying fallback exchanges...")
+        
+        for fallback_exchange in self.FALLBACK_EXCHANGES:
+            # 現在の取引所と同じ場合はスキップ
+            if fallback_exchange == self.exchange_id:
+                continue
+                
+            logger.info(f"Trying fallback exchange: {fallback_exchange}")
+            
+            # 取引所を切り替えて試す
+            old_exchange_id = self.exchange_id
+            self.exchange_id = fallback_exchange
+            
+            try:
+                self._initialize_exchange()
+                df = self._try_fetch_from_exchange(fallback_exchange, timeframe, limit)
+                
+                if not df.empty:
+                    logger.info(f"Successfully fetched data from fallback exchange: {fallback_exchange}")
+                    return df
+            except Exception as e:
+                logger.error(f"Fallback exchange {fallback_exchange} failed: {str(e)}")
+                
+        # すべての取引所が失敗した場合
+        logger.error("All exchanges failed to fetch data")
+        return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        
+    def _try_fetch_from_exchange(self, exchange_id: str, timeframe: str, limit: int) -> pd.DataFrame:
+        """
+        指定された取引所からデータを取得する
+        
+        Args:
+            exchange_id: 取引所ID
+            timeframe: 時間枠
             limit: 取得するデータ点の数
             
         Returns:
@@ -77,7 +126,7 @@ class DataFetcher:
             # 3回までリトライ
             for attempt in range(3):
                 try:
-                    logger.info(f"Fetching {timeframe} OHLCV data for {self.symbol} from {self.exchange_id}")
+                    logger.info(f"Fetching {timeframe} OHLCV data for {self.symbol} from {exchange_id}")
                     ohlcv = self.exchange.fetch_ohlcv(self.symbol, timeframe, limit=limit)
                     
                     # DataFrameに変換
@@ -89,18 +138,18 @@ class DataFetcher:
                     # インデックスを設定
                     df.set_index('timestamp', inplace=True)
                     
-                    logger.info(f"Successfully fetched {len(df)} {timeframe} candles")
+                    logger.info(f"Successfully fetched {len(df)} {timeframe} candles from {exchange_id}")
                     
                     return df
                 except ccxt.NetworkError as e:
                     if attempt < 2:  # 2回目までは再試行
-                        logger.warning(f"Network error: {str(e)}. Retrying in 2 seconds...")
+                        logger.warning(f"Network error with {exchange_id}: {str(e)}. Retrying in 2 seconds...")
                         time.sleep(2)
                     else:
                         raise
         
         except Exception as e:
-            logger.error(f"Error fetching OHLCV data: {str(e)}")
+            logger.error(f"Error fetching OHLCV data from {exchange_id}: {str(e)}")
             # エラー時は空のDataFrameを返す
             return pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
     

@@ -87,7 +87,11 @@ class TradingBot:
             if "error" in analysis_results:
                 error_msg = f"分析中にエラーが発生しました: {analysis_results['error']}"
                 logger.error(error_msg)
-                return self.notifier.send_error_notification(error_msg)
+                return self.notifier.send_error_notification(
+                    error_msg,
+                    exchange_id=self.data_fetcher.exchange_id,
+                    symbol=self.data_fetcher.symbol
+                )
                 
             # Discord通知を送信
             success = self.notifier.send_market_analysis(analysis_results, session)
@@ -102,7 +106,12 @@ class TradingBot:
         except Exception as e:
             logger.exception(f"Error in send_notification: {str(e)}")
             error_msg = f"通知送信中にエラーが発生しました: {str(e)}"
-            self.notifier.send_error_notification(error_msg)
+            self.notifier.send_error_notification(
+                error_msg,
+                exchange_id=self.data_fetcher.exchange_id,
+                symbol=self.data_fetcher.symbol,
+                details={"エラータイプ": type(e).__name__}
+            )
             return False
             
     def schedule_notifications(self) -> None:
@@ -157,8 +166,17 @@ def main():
         # 設定されていればエラー通知も送信
         try:
             notifier = DiscordNotifier()
-            notifier.send_error_notification(f"アプリケーションで重大なエラーが発生しました: {str(e)}")
-        except:
+            error_details = {
+                "エラータイプ": type(e).__name__,
+                "発生時刻": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "システム情報": f"Python {sys.version.split()[0]}"
+            }
+            notifier.send_error_notification(
+                f"アプリケーションで重大なエラーが発生しました: {str(e)}",
+                details=error_details
+            )
+        except Exception as notify_error:
+            logger.error(f"エラー通知の送信に失敗しました: {str(notify_error)}")
             pass
         
         sys.exit(1)

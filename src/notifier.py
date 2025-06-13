@@ -158,12 +158,15 @@ class DiscordNotifier:
         logger.info(f"Sending {session_name} analysis with {len(embeds)} timeframes")
         return self.send_message(content, embeds)
         
-    def send_error_notification(self, error_message: str) -> bool:
+    def send_error_notification(self, error_message: str, exchange_id: str = None, symbol: str = None, details: Dict[str, Any] = None) -> bool:
         """
         エラー通知を送信する
         
         Args:
             error_message: エラーメッセージ
+            exchange_id: 取引所ID
+            symbol: 通貨ペア
+            details: 追加の詳細情報
             
         Returns:
             bool: 送信成功の場合はTrue
@@ -171,14 +174,49 @@ class DiscordNotifier:
         now = get_current_utc_time()
         formatted_time = format_time_for_display(now)
         
+        # 取引所と通貨ペアの情報を含めたタイトルを作成
+        title_parts = []
+        if exchange_id:
+            title_parts.append(f"取引所: {exchange_id.upper()}")
+        if symbol:
+            title_parts.append(f"通貨ペア: {symbol}")
+            
+        title_suffix = f" ({', '.join(title_parts)})" if title_parts else ""
         content = f"⚠️ **TRAND Bot エラー通知** ({formatted_time})"
         
+        # 基本的なエラー情報
         embed = {
-            "title": "エラーが発生しました",
+            "title": f"エラーが発生しました{title_suffix}",
             "description": error_message,
             "color": int("FF0000", 16),  # 赤色
-            "timestamp": now  # datetimeオブジェクトをそのまま渡す
+            "timestamp": now,  # datetimeオブジェクトをそのまま渡す
+            "fields": []
         }
+        
+        # 追加情報があればフィールドに追加
+        if details:
+            for key, value in details.items():
+                if value is not None:
+                    # 追加情報が複雑なオブジェクトの場合はJSON形式に変換
+                    if isinstance(value, (dict, list)):
+                        try:
+                            value_str = json.dumps(value, indent=2, ensure_ascii=False)
+                        except:
+                            value_str = str(value)
+                    else:
+                        value_str = str(value)
+                        
+                    embed["fields"].append({
+                        "name": key,
+                        "value": f"```{value_str}```" if len(value_str) > 20 else value_str,
+                        "inline": False
+                    })
+        
+        # フォールバック情報を追加
+        if exchange_id:
+            embed["footer"] = {
+                "text": f"TRAND Bot • フォールバック取引所を試行中"
+            }
         
         logger.info(f"Sending error notification: {error_message}")
         return self.send_message(content, [embed])
