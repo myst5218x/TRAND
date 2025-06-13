@@ -2,42 +2,36 @@ name: Trading Bot Schedule
 
 on:
   schedule:
-    # 毎日9:00 JST (0:00 UTC), 17:00 JST (8:00 UTC), 1:00 JST (16:00 UTC)に実行
-    - cron: '0 0,8,16 * * *'
-  
-  # 手動実行用トリガー
-  workflow_dispatch:
+    # アジアタイム (UTC 01:00 = JST 10:00)
+    - cron: '0 1 * * *'
+    # 欧州タイム (UTC 08:00 = CET 09:00)
+    - cron: '0 8 * * *'
+    # アメリカタイム (UTC 14:00 = EST 09:00)
+    - cron: '0 14 * * *'
+  workflow_dispatch:  # 手動実行用
 
 jobs:
   run-trading-bot:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    
-    - name: Run trading bot
-      env:
-        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        BYBIT_API_KEY: ${{ secrets.BYBIT_API_KEY }}
-        BYBIT_API_SECRET: ${{ secrets.BYBIT_API_SECRET }}
-      run: |
-        python -m src.main --once
-    
-    - name: Upload logs
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: logs
-        path: logs/*.log
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run trading bot
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          BYBIT_API_KEY: ${{ secrets.BYBIT_API_KEY }}
+          BYBIT_API_SECRET: ${{ secrets.BYBIT_API_SECRET }}
+        run: python -
