@@ -24,20 +24,29 @@ class GPTAnalyzer:
         """
         self.api_key = api_key or OPENAI_API_KEY
         
-        # OpenAI v1.5.0以降ではプロキシ設定が変更されたため、直接パラメータとして渡さない
-        # 代わりに環境変数OPENAI_PROXY経由で設定可能
-        try:
-            self.client = OpenAI(api_key=self.api_key)
-        except TypeError as e:
-            if "proxies" in str(e):
-                # proxiesパラメータが原因でエラーが発生した場合
-                logger.warning("OpenAI client initialization with proxies parameter failed, trying without proxies")
-                # 環境変数経由でプロキシを設定する方法をログに記録
-                logger.info("To use proxies with OpenAI v1.5.0+, set the OPENAI_PROXY environment variable")
-                self.client = OpenAI(api_key=self.api_key)
-            else:
-                # その他のTypeErrorの場合は再度発生させる
-                raise
+        # OpenAI v1.5.0以降ではプロキシ設定が変更されたため、環境変数で設定する
+        # クライアント作成時にパラメータを最小限にしてエラーを回避
+        logger.info("Initializing OpenAI client with API key only")
+        # プロキシが必要な場合は環境変数で設定するようログに記録
+        logger.info("To use proxies with OpenAI v1.5.0+, set the OPENAI_PROXY environment variable")
+        
+        # クライアントの初期化を行う
+        import httpx
+        from openai._base_client import SyncHttpxClientWrapper
+        
+        # カスタムクライアントを作成
+        http_client = SyncHttpxClientWrapper(
+            httpx.Client(
+                timeout=httpx.Timeout(60.0),
+                # プロキシは環境変数で設定されるため、ここでは指定しない
+            )
+        )
+        
+        # カスタムHTTPクライアントを使用してOpenAIクライアントを初期化
+        self.client = OpenAI(
+            api_key=self.api_key,
+            http_client=http_client
+        )
         
     def _create_prompt(self, market_data: Dict[str, Any], timeframe: str) -> str:
         """
