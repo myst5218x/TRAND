@@ -24,15 +24,28 @@ class GPTAnalyzer:
         """
         self.api_key = api_key or OPENAI_API_KEY
         
-        # OpenAI v1.5.0以降ではプロキシ設定が変更されたため、環境変数で設定する
-        # クライアント作成時にパラメータを最小限にしてエラーを回避
+        # OpenAI v1.5.0以降では、環境変数を使用してプロキシを設定する
         logger.info("Initializing OpenAI client with API key only")
-        # プロキシが必要な場合は環境変数で設定するようログに記録
-        logger.info("To use proxies with OpenAI v1.5.0+, set the OPENAI_PROXY environment variable")
         
-        # 最もシンプルな方法でクライアントを初期化
-        # カスタムHTTPクライアントは使用せず、最小限のパラメータで初期化
-        self.client = OpenAI(api_key=self.api_key)
+        # 環境変数が設定されているか確認
+        proxy = os.environ.get('OPENAI_PROXY')
+        if proxy:
+            logger.info(f"Using proxy from OPENAI_PROXY environment variable: {proxy}")
+            # 環境変数からプロキシを設定
+            os.environ['HTTP_PROXY'] = proxy
+            os.environ['HTTPS_PROXY'] = proxy
+        else:
+            logger.info("No proxy configuration found. Set OPENAI_PROXY environment variable if needed.")
+        
+        # 環境変数を使用してOpenAIクライアントを初期化
+        try:
+            self.client = OpenAI(api_key=self.api_key)
+            # 接続テスト
+            self.client.models.list()  # 接続テスト
+            logger.info("Successfully initialized OpenAI client")
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+            raise
         
     def _create_prompt(self, market_data: Dict[str, Any], timeframe: str) -> str:
         """
