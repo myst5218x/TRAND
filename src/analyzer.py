@@ -3,7 +3,6 @@
 """
 import pandas as pd
 import numpy as np
-import talib
 import pandas_ta as ta
 from typing import Dict, List, Optional, Union, Tuple, Any
 import json
