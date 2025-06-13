@@ -24,7 +24,7 @@ class TradingBot:
     
     def __init__(self):
         """初期化"""
-        self.data_fetcher = DataFetcher(exchange_id="binance", symbol="BTC/USDT")
+        self.data_fetcher = DataFetcher(exchange_id="bybit", symbol="BTC/USDT")
         self.tech_analyzer = TechnicalAnalyzer()
         self.gpt_analyzer = GPTAnalyzer()
         self.notifier = DiscordNotifier()
