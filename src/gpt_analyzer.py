@@ -30,23 +30,9 @@ class GPTAnalyzer:
         # プロキシが必要な場合は環境変数で設定するようログに記録
         logger.info("To use proxies with OpenAI v1.5.0+, set the OPENAI_PROXY environment variable")
         
-        # クライアントの初期化を行う
-        import httpx
-        from openai._base_client import SyncHttpxClientWrapper
-        
-        # カスタムクライアントを作成
-        http_client = SyncHttpxClientWrapper(
-            httpx.Client(
-                timeout=httpx.Timeout(60.0),
-                # プロキシは環境変数で設定されるため、ここでは指定しない
-            )
-        )
-        
-        # カスタムHTTPクライアントを使用してOpenAIクライアントを初期化
-        self.client = OpenAI(
-            api_key=self.api_key,
-            http_client=http_client
-        )
+        # 最もシンプルな方法でクライアントを初期化
+        # カスタムHTTPクライアントは使用せず、最小限のパラメータで初期化
+        self.client = OpenAI(api_key=self.api_key)
         
     def _create_prompt(self, market_data: Dict[str, Any], timeframe: str) -> str:
         """
