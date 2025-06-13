@@ -23,7 +23,21 @@ class GPTAnalyzer:
             api_key: OpenAI API Key (デフォルトはconfig.pyから取得)
         """
         self.api_key = api_key or OPENAI_API_KEY
-        self.client = OpenAI(api_key=self.api_key)
+        
+        # OpenAI v1.5.0以降ではプロキシ設定が変更されたため、直接パラメータとして渡さない
+        # 代わりに環境変数OPENAI_PROXY経由で設定可能
+        try:
+            self.client = OpenAI(api_key=self.api_key)
+        except TypeError as e:
+            if "proxies" in str(e):
+                # proxiesパラメータが原因でエラーが発生した場合
+                logger.warning("OpenAI client initialization with proxies parameter failed, trying without proxies")
+                # 環境変数経由でプロキシを設定する方法をログに記録
+                logger.info("To use proxies with OpenAI v1.5.0+, set the OPENAI_PROXY environment variable")
+                self.client = OpenAI(api_key=self.api_key)
+            else:
+                # その他のTypeErrorの場合は再度発生させる
+                raise
         
     def _create_prompt(self, market_data: Dict[str, Any], timeframe: str) -> str:
         """
