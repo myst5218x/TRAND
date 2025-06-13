@@ -32,5 +32,21 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
-        # テストコマンドをここに追加
+        # テストコマンドを実行
         python -c "import os; from openai import OpenAI; client = OpenAI(api_key=os.getenv('OPENAI_API_KEY')); print('OpenAI API connection successful')"
+        
+    - name: Send Discord notification
+      if: always()
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: |
+        STATUS=${{ job.status }}
+        if [ "$STATUS" = "success" ]; then
+          EMOJI=":white_check_mark:"
+          MESSAGE="GitHub Actions のテストが成功しました！"
+        else
+          EMOJI=":x:"
+          MESSAGE="GitHub Actions のテストが失敗しました。詳細は [こちら](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) を確認してください。"
+        fi
+        
+        curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"$EMOJI $MESSAGE\nリポジトリ: ${{ github.repository }}\nブランチ: ${{ github.ref_name }}\nコミット: ${{ github.sha }}\"}" $DISCORD_WEBHOOK_URL
