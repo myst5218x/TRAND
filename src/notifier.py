@@ -177,7 +177,7 @@ class DiscordNotifier:
             "title": "エラーが発生しました",
             "description": error_message,
             "color": int("FF0000", 16),  # 赤色
-            "timestamp": now.isoformat()
+            "timestamp": now  # datetimeオブジェクトをそのまま渡す
         }
         
         logger.info(f"Sending error notification: {error_message}")

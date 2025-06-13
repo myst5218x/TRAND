@@ -17,7 +17,7 @@ logger = setup_logger("data_fetcher")
 class DataFetcher:
     """暗号資産の価格データを取得するクラス"""
     
-    def __init__(self, exchange_id: str = "binance", symbol: str = DEFAULT_SYMBOL):
+    def __init__(self, exchange_id: str = "bybit", symbol: str = DEFAULT_SYMBOL):
         """
         初期化
         
