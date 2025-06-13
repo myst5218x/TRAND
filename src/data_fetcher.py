@@ -7,6 +7,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Union, Any
 import time
+import os
 
 from .utils.logger import setup_logger
 from .config import DEFAULT_SYMBOL
@@ -34,9 +35,25 @@ class DataFetcher:
         try:
             # ccxtライブラリで取引所インスタンスを作成
             exchange_class = getattr(ccxt, self.exchange_id)
-            self.exchange = exchange_class({
+            
+            # API設定を作成
+            config = {
                 'enableRateLimit': True,  # レート制限を有効化
-            })
+            }
+            
+            # 取引所に応じたAPIキー設定
+            if self.exchange_id.lower() == 'bybit':
+                api_key = os.getenv('BYBIT_API_KEY')
+                api_secret = os.getenv('BYBIT_API_SECRET')
+                
+                if api_key and api_secret:
+                    config['apiKey'] = api_key
+                    config['secret'] = api_secret
+                    logger.info(f"Bybit API credentials loaded successfully")
+                else:
+                    logger.warning(f"Bybit API credentials not found in environment variables")
+            
+            self.exchange = exchange_class(config)
             logger.info(f"Exchange {self.exchange_id} initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize exchange {self.exchange_id}: {str(e)}")
